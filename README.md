@@ -1,0 +1,1 @@
+# Queil.CodeRules.Analysis
