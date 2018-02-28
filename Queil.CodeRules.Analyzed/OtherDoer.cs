@@ -1,4 +1,4 @@
-﻿using Queil.CodeRules.Analyzed.RemoveThis.Container;
+﻿using BadContainerIncognito = Queil.CodeRules.Analyzed.RemoveThis.Container.Container;
 
 namespace Queil.CodeRules.Analyzed
 {
@@ -6,7 +6,7 @@ namespace Queil.CodeRules.Analyzed
     {
         public OtherDoer()
         {
-            var doer = Container.Resolve<Doer>();
+            var doer = BadContainerIncognito.Resolve<Doer>();
             doer.DoBoth();
         }
     }
