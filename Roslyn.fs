@@ -6,6 +6,12 @@ open Microsoft.CodeAnalysis.FindSymbols
 
 module Roslyn =
 
+    type ReferencesResult =
+     | UnknownType
+     | MultipleTypeDeclaration
+     | Found of ReferencedSymbol seq
+     | NoReferences
+
     let openSolution solutionPath =
         async {
             let ws = MSBuildWorkspace.Create()
@@ -13,42 +19,43 @@ module Roslyn =
                      |> Async.AwaitTask
         }
 
-    let declarationOfType (name:string) (p:Project) : Async<Option<ISymbol>> = 
-        async {
-            let nameSegments = name.Split('.') |> List.ofSeq |> List.rev
-            let! symbols = SymbolFinder.FindDeclarationsAsync(p, nameSegments.[0], true, SymbolFilter.Type)
-                            |> Async.AwaitTask
+    let declarationOfType (name:string) (solution:Solution) =
+      async {
+        let nameSegments = name.Split('.') |> List.ofSeq |> List.rev
+        let! symbols = SymbolFinder.FindSourceDeclarationsAsync(solution, (fun n -> n = nameSegments.[0])) |> Async.AwaitTask
 
-            let isMatch symbol =
-                let rec checkNs sgm (s:ISymbol) =
-                    match (sgm,s) with
-                        | ([], a) when (a.ContainingNamespace |> isNull) -> true
-                        | ([], _) -> false
-                        | (h::t, a) when a.Name = h -> checkNs t (s.ContainingNamespace)
-                        | _ -> false
-                checkNs nameSegments symbol
+        let isMatch symbol =
+            let rec checkNs sgm (s:ISymbol) =
+                match (sgm,s) with
+                    | ([], a) when (a.ContainingNamespace |> isNull) -> true
+                    | ([], _) -> false
+                    | (h::t, a) when a.Name = h -> checkNs t (s.ContainingNamespace)
+                    | _ -> false
+            checkNs nameSegments symbol
 
-            return match symbols |> Seq.toList with
-                    | [] -> None
+        return match symbols |> Seq.toList with
+                    | [] -> []
                     | a -> match a |> List.filter isMatch with 
-                            | [] -> None
-                            | h::t -> Some h
-        }
+                            | [] -> []
+                            | a -> a
+      }
 
     let referencesOfType (s:ISymbol) (solution:Solution) =
         async {
-            return! SymbolFinder.FindReferencesAsync(s, solution) |> Async.AwaitTask
+            let! ret = SymbolFinder.FindReferencesAsync(s, solution) |> Async.AwaitTask
+            return ret |> Seq.toList
         }
 
     let findReferencesOf typeName slnPath = 
         async {
             let! solution = openSolution slnPath
-            let! wantedSymbol = solution.Projects
-                                 |> Seq.map (declarationOfType typeName)
-                                 |> Seq.head
+            let! wantedSymbol = solution |> declarationOfType typeName 
 
             match wantedSymbol with
-             | None -> return []
-             | Some s -> let! res =  solution |> referencesOfType s
-                         return res |> Seq.toList
+             | [] -> return UnknownType
+             | [s] -> let! refs = solution |> referencesOfType s
+                      match refs with
+                       | [] -> return NoReferences
+                       | _ -> return Found (refs)
+             | _ -> return MultipleTypeDeclaration
         }
