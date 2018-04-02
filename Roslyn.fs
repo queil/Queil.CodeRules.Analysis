@@ -7,10 +7,10 @@ open Microsoft.CodeAnalysis.FindSymbols
 module Roslyn =
 
     type ReferencesResult =
-     | UnknownType
-     | MultipleTypeDeclaration
-     | Found of ReferencedSymbol seq
-     | NoReferences
+     | NoMatch
+     | MultipleMatch of ISymbol seq
+     | SingleMatch of ISymbol * ReferencedSymbol seq
+     | NoReferences of ISymbol
 
     let openSolution solutionPath =
         async {
@@ -19,25 +19,23 @@ module Roslyn =
                      |> Async.AwaitTask
         }
 
-    let declarationOfType (name:string) (solution:Solution) =
+    let rec ancestors (s:ISymbol) = 
+        seq {   
+                yield s
+                match s.ContainingSymbol with
+                 | :? INamespaceSymbol as ns when ns.IsGlobalNamespace -> ()
+                 | c -> yield! ancestors c
+            }
+    
+    let declarationOfType (fullName:string) (solution:Solution) =
       async {
-        let nameSegments = name.Split('.') |> List.ofSeq |> List.rev
-        let! symbols = SymbolFinder.FindSourceDeclarationsAsync(solution, (fun n -> n = nameSegments.[0])) |> Async.AwaitTask
+        let nameParts = fullName.Split('.') |> Seq.rev
+        let nameFilter n = nameParts |> Seq.head = n
+        let! symbols = SymbolFinder.FindSourceDeclarationsAsync(solution, nameFilter) |> Async.AwaitTask
 
-        let isMatch symbol =
-            let rec checkNs sgm (s:ISymbol) =
-                match (sgm,s) with
-                    | ([], a) when (a.ContainingNamespace |> isNull) -> true
-                    | ([], _) -> false
-                    | (h::t, a) when a.Name = h -> checkNs t (s.ContainingNamespace)
-                    | _ -> false
-            checkNs nameSegments symbol
-
-        return match symbols |> Seq.toList with
-                    | [] -> []
-                    | a -> match a |> List.filter isMatch with 
-                            | [] -> []
-                            | a -> a
+        let isMatch symbol = (symbol |> ancestors |> Seq.map (fun x -> x.Name), nameParts) ||> Seq.compareWith Operators.compare = 0
+            
+        return symbols |> Seq.filter isMatch |> Seq.toList
       }
 
     let referencesOfType (s:ISymbol) (solution:Solution) =
@@ -49,13 +47,13 @@ module Roslyn =
     let findReferencesOf typeName slnPath = 
         async {
             let! solution = openSolution slnPath
-            let! wantedSymbol = solution |> declarationOfType typeName 
+            let! wantedSymbols = solution |> declarationOfType typeName 
 
-            match wantedSymbol with
-             | [] -> return UnknownType
+            match wantedSymbols with
+             | [] -> return NoMatch
              | [s] -> let! refs = solution |> referencesOfType s
                       match refs with
-                       | [] -> return NoReferences
-                       | _ -> return Found (refs)
-             | _ -> return MultipleTypeDeclaration
+                       | [] -> return NoMatch 
+                       | _ -> return SingleMatch (s, refs)
+             | _ -> return MultipleMatch (wantedSymbols)
         }

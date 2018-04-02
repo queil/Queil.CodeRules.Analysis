@@ -40,6 +40,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="LeaveThis\Generic.cs" />
+    <Compile Include="LeaveThis\NestedContainer.cs" />
     <Compile Include="LeaveThis\StringContainer.cs" />
     <Compile Include="Doer.cs" />
     <Compile Include="OtherDoer.cs" />
