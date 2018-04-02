@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.27130.2036
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Queil.CodeRules.Analyzer", "Queil.CodeRules.Analyzer.fsproj", "{81DF8D98-E8D3-4C8F-BDEB-3993D80CB22C}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Queil.CodeRules.Analyzer", "Queil.CodeRules.Analyzer\Queil.CodeRules.Analyzer.fsproj", "{81DF8D98-E8D3-4C8F-BDEB-3993D80CB22C}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Queil.CodeRules.Analyzed", "Queil.CodeRules.Analyzed\Queil.CodeRules.Analyzed.csproj", "{0CF7C356-5CCF-4D1C-A337-AECEF36FC02F}"
 EndProject
