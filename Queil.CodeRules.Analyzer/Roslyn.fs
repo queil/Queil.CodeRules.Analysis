@@ -53,7 +53,7 @@ module Roslyn =
              | [] -> return NoMatch
              | [s] -> let! refs = solution |> referencesOfType s
                       match refs with
-                       | [] -> return NoMatch 
+                       | [] -> return NoReferences (s) 
                        | _ -> return SingleMatch (s, refs)
              | _ -> return MultipleMatch (wantedSymbols)
         }
